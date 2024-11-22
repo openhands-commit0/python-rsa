@@ -71,7 +71,7 @@ def miller_rabin_primality_testing(n: int, k: int) -> bool:
 
     # Test k witnesses
     for _ in range(k):
-        a = rsa.randnum.randint(n - 2, minvalue=2)
+        a = rsa.randnum.randint(n - 2)
         x = pow(a, d, n)
         if x == 1 or x == n - 1:
             continue
