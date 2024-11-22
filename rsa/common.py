@@ -30,7 +30,11 @@ def bit_size(num: int) -> int:
     :returns:
         Returns the number of bits in the integer.
     """
-    pass
+    if not isinstance(num, int):
+        raise TypeError("Number must be an integer")
+    if num == 0:
+        return 0
+    return abs(num).bit_length()
 
 def byte_size(number: int) -> int:
     """
@@ -52,7 +56,13 @@ def byte_size(number: int) -> int:
     :returns:
         The number of bytes required to hold a specific long number.
     """
-    pass
+    if not isinstance(number, int):
+        raise TypeError("Number must be an integer")
+    if number < 0:
+        raise ValueError("Number must be an unsigned integer")
+    if number == 0:
+        return 1
+    return ceil_div(bit_size(number), 8)
 
 def ceil_div(num: int, div: int) -> int:
     """
@@ -72,11 +82,33 @@ def ceil_div(num: int, div: int) -> int:
 
     :return: Rounded up result of the division between the parameters.
     """
-    pass
+    quanta, mod = divmod(num, div)
+    if mod:
+        quanta += 1
+    return quanta
 
 def extended_gcd(a: int, b: int) -> typing.Tuple[int, int, int]:
     """Returns a tuple (r, i, j) such that r = gcd(a, b) = ia + jb"""
-    pass
+    # r = gcd(a,b) i = multiplicitive inverse of a mod b
+    #      or      j = multiplicitive inverse of b mod a
+    # Neg return values for i or j are made positive mod b or a respectively
+    # Iterative Version
+    x = 0
+    y = 1
+    lx = 1
+    ly = 0
+    oa = a  # Remember original a/b to remove
+    ob = b  # negative values from return results
+    while b != 0:
+        q = a // b
+        (a, b) = (b, a % b)
+        (x, lx) = ((lx - (q * x)), x)
+        (y, ly) = ((ly - (q * y)), y)
+    if lx < 0:
+        lx += ob  # If neg wrap modulo original b
+    if ly < 0:
+        ly += oa  # If neg wrap modulo original a
+    return a, lx, ly  # Return only positive values
 
 def inverse(x: int, n: int) -> int:
     """Returns the inverse of x % n under multiplication, a.k.a x^-1 (mod n)
@@ -86,7 +118,10 @@ def inverse(x: int, n: int) -> int:
     >>> (inverse(143, 4) * 143) % 4
     1
     """
-    pass
+    gcd, a, _ = extended_gcd(x, n)
+    if gcd != 1:
+        raise NotRelativePrimeError(x, n, gcd)
+    return a % n
 
 def crt(a_values: typing.Iterable[int], modulo_values: typing.Iterable[int]) -> int:
     """Chinese Remainder Theorem.
@@ -107,7 +142,26 @@ def crt(a_values: typing.Iterable[int], modulo_values: typing.Iterable[int]) -> 
     >>> crt([2, 3, 0], [7, 11, 15])
     135
     """
-    pass
+    a_values = list(a_values)
+    modulo_values = list(modulo_values)
+    
+    if len(a_values) != len(modulo_values):
+        raise ValueError("Number of a values must match number of modulo values")
+    
+    # Calculate product of all moduli
+    prod = 1
+    for modulus in modulo_values:
+        prod *= modulus
+    
+    # Calculate sum of a[i] * b[i] * r[i] where:
+    # b[i] = prod / m[i]
+    # r[i] = multiplicative inverse of b[i] mod m[i]
+    total = 0
+    for i, (a_i, m_i) in enumerate(zip(a_values, modulo_values)):
+        p = prod // m_i
+        total += a_i * p * inverse(p, m_i)
+    
+    return total % prod
 if __name__ == '__main__':
     import doctest
     doctest.testmod()
