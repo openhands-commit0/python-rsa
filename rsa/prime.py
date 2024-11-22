@@ -13,7 +13,9 @@ def gcd(p: int, q: int) -> int:
     >>> gcd(48, 180)
     12
     """
-    pass
+    while q != 0:
+        p, q = q, p % q
+    return p
 
 def get_primality_testing_rounds(number: int) -> int:
     """Returns minimum number of rounds for Miller-Rabing primality testing,
@@ -27,7 +29,18 @@ def get_primality_testing_rounds(number: int) -> int:
       * p, q bitsize: 1536; rounds: 3
     See: http://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf
     """
-    pass
+    # Calculate bit size of the number
+    bit_size = rsa.common.bit_size(number)
+    
+    # Return number of rounds based on bit size
+    if bit_size >= 1536:
+        return 3
+    if bit_size >= 1024:
+        return 4
+    if bit_size >= 512:
+        return 7
+    # For smaller bit sizes, use more rounds for better security
+    return 10
 
 def miller_rabin_primality_testing(n: int, k: int) -> bool:
     """Calculates whether n is composite (which is always correct) or prime
@@ -44,7 +57,34 @@ def miller_rabin_primality_testing(n: int, k: int) -> bool:
     :return: False if the number is composite, True if it's probably prime.
     :rtype: bool
     """
-    pass
+    import random
+
+    if n == 2 or n == 3:
+        return True
+    if n < 2 or n % 2 == 0:
+        return False
+
+    # Write n-1 as d * 2^r by factoring powers of 2 from n-1
+    r = 0
+    d = n - 1
+    while d % 2 == 0:
+        r += 1
+        d //= 2
+
+    # Test k witnesses
+    for _ in range(k):
+        a = random.randrange(2, n - 1)
+        x = pow(a, d, n)
+        if x == 1 or x == n - 1:
+            continue
+        
+        for _ in range(r - 1):
+            x = pow(x, 2, n)
+            if x == n - 1:
+                break
+        else:
+            return False
+    return True
 
 def is_prime(number: int) -> bool:
     """Returns True if the number is prime, and False otherwise.
@@ -56,7 +96,17 @@ def is_prime(number: int) -> bool:
     >>> is_prime(41)
     True
     """
-    pass
+    # Handle small numbers
+    if number < 2:
+        return False
+    if number == 2:
+        return True
+    if number % 2 == 0:
+        return False
+
+    # Get number of rounds for Miller-Rabin testing
+    rounds = get_primality_testing_rounds(number)
+    return miller_rabin_primality_testing(number, rounds)
 
 def getprime(nbits: int) -> int:
     """Returns a prime number that can be stored in 'nbits' bits.
@@ -73,7 +123,14 @@ def getprime(nbits: int) -> int:
     >>> common.bit_size(p) == 128
     True
     """
-    pass
+    # Keep generating random numbers until we find a prime
+    while True:
+        # Generate a random number with nbits bits
+        integer = rsa.randnum.read_random_odd_int(nbits)
+        
+        # Test for primality
+        if is_prime(integer):
+            return integer
 
 def are_relatively_prime(a: int, b: int) -> bool:
     """Returns True if a and b are relatively prime, and False if they
@@ -84,7 +141,7 @@ def are_relatively_prime(a: int, b: int) -> bool:
     >>> are_relatively_prime(2, 4)
     False
     """
-    pass
+    return gcd(a, b) == 1
 if __name__ == '__main__':
     print('Running doctests 1000x or until failure')
     import doctest
