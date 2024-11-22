@@ -120,7 +120,12 @@ class AbstractKey:
 
         See https://en.wikipedia.org/wiki/Blinding_%28cryptography%29
         """
-        pass
+        with self.mutex:
+            if self.blindfac < 0:
+                self.blindfac, self.blindfac_inverse = self._update_blinding_factor()
+
+            blinded = (message * pow(self.blindfac, self.e, self.n)) % self.n
+            return blinded, self.blindfac_inverse
 
     def unblind(self, blinded: int, blindfac_inverse: int) -> int:
         """Performs blinding on the message using random number 'blindfac_inverse'.
@@ -133,7 +138,7 @@ class AbstractKey:
 
         See https://en.wikipedia.org/wiki/Blinding_%28cryptography%29
         """
-        pass
+        return (blindfac_inverse * blinded) % self.n
 
     def _update_blinding_factor(self) -> typing.Tuple[int, int]:
         """Update blinding factors.
@@ -146,7 +151,13 @@ class AbstractKey:
 
         :return: the new blinding factor and its inverse.
         """
-        pass
+        # Generate a random number between 2 and n-1
+        blindfac = rsa.randnum.randint(self.n - 2)
+
+        # Calculate its inverse
+        blindfac_inverse = rsa.common.inverse(blindfac, self.n)
+
+        return blindfac, blindfac_inverse
 
 class PublicKey(AbstractKey):
     """Represents a public RSA key.
@@ -350,7 +361,9 @@ class PrivateKey(AbstractKey):
         :returns: the decrypted message
         :rtype: int
         """
-        pass
+        blinded, blindfac_inverse = self.blind(encrypted)
+        decrypted = core.decrypt_int(blinded, self.d, self.n)
+        return self.unblind(decrypted, blindfac_inverse)
 
     def blinded_encrypt(self, message: int) -> int:
         """Encrypts the message using blinding to prevent side-channel attacks.
@@ -361,7 +374,9 @@ class PrivateKey(AbstractKey):
         :returns: the encrypted message
         :rtype: int
         """
-        pass
+        blinded, blindfac_inverse = self.blind(message)
+        encrypted = core.encrypt_int(blinded, self.d, self.n)
+        return self.unblind(encrypted, blindfac_inverse)
 
     @classmethod
     def _load_pkcs1_der(cls, keyfile: bytes) -> 'PrivateKey':
