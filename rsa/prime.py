@@ -57,8 +57,6 @@ def miller_rabin_primality_testing(n: int, k: int) -> bool:
     :return: False if the number is composite, True if it's probably prime.
     :rtype: bool
     """
-    import random
-
     if n == 2 or n == 3:
         return True
     if n < 2 or n % 2 == 0:
@@ -73,7 +71,7 @@ def miller_rabin_primality_testing(n: int, k: int) -> bool:
 
     # Test k witnesses
     for _ in range(k):
-        a = random.randrange(2, n - 1)
+        a = rsa.randnum.randint(2, n - 2)
         x = pow(a, d, n)
         if x == 1 or x == n - 1:
             continue
