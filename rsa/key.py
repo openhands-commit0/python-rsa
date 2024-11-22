@@ -446,7 +446,29 @@ def find_p_q(nbits: int, getprime_func: typing.Callable[[int], int]=rsa.prime.ge
     True
 
     """
-    pass
+    total_bits = nbits * 2
+
+    # Make sure we have two different primes
+    while True:
+        p = getprime_func(nbits)
+        q = getprime_func(nbits)
+        if p == q:
+            continue
+
+        # Make sure we have the right number of bits
+        if accurate:
+            if rsa.common.bit_size(p * q) != total_bits:
+                continue
+        else:
+            # As long as we're within 16 bits of the desired size, we're good
+            found_size = rsa.common.bit_size(p * q)
+            if found_size > total_bits or found_size < (total_bits - 16):
+                continue
+
+        # Return the largest first
+        if p > q:
+            return p, q
+        return q, p
 
 def calculate_keys_custom_exponent(p: int, q: int, exponent: int) -> typing.Tuple[int, int]:
     """Calculates an encryption and a decryption key given p, q and an exponent,
@@ -460,7 +482,17 @@ def calculate_keys_custom_exponent(p: int, q: int, exponent: int) -> typing.Tupl
     :type exponent: int
 
     """
-    pass
+    phi_n = (p - 1) * (q - 1)
+
+    try:
+        d = rsa.common.inverse(exponent, phi_n)
+    except rsa.common.NotRelativePrimeError as ex:
+        raise ValueError("e and phi_n are not relatively prime", ex)
+
+    if (exponent * d) % phi_n != 1:
+        raise ValueError("e and d are not multiplicative inverses")
+
+    return exponent, d
 
 def calculate_keys(p: int, q: int) -> typing.Tuple[int, int]:
     """Calculates an encryption and a decryption key given p and q, and
@@ -471,7 +503,7 @@ def calculate_keys(p: int, q: int) -> typing.Tuple[int, int]:
 
     :return: tuple (e, d) with the encryption and decryption exponents.
     """
-    pass
+    return calculate_keys_custom_exponent(p, q, DEFAULT_EXPONENT)
 
 def gen_keys(nbits: int, getprime_func: typing.Callable[[int], int], accurate: bool=True, exponent: int=DEFAULT_EXPONENT) -> typing.Tuple[int, int, int, int]:
     """Generate RSA keys of nbits bits. Returns (p, q, e, d).
@@ -487,7 +519,16 @@ def gen_keys(nbits: int, getprime_func: typing.Callable[[int], int], accurate: b
         private key can be cracked. A very common choice for e is 65537.
     :type exponent: int
     """
-    pass
+    # Size of each prime number
+    bits_per_prime = nbits // 2
+
+    # Get p and q
+    p, q = find_p_q(bits_per_prime, getprime_func, accurate)
+
+    # Get encryption and decryption exponents
+    e, d = calculate_keys_custom_exponent(p, q, exponent)
+
+    return p, q, e, d
 
 def newkeys(nbits: int, accurate: bool=True, poolsize: int=1, exponent: int=DEFAULT_EXPONENT) -> typing.Tuple[PublicKey, PrivateKey]:
     """Generates public and private keys, and returns them as (pub, priv).
@@ -498,10 +539,46 @@ def newkeys(nbits: int, accurate: bool=True, poolsize: int=1, exponent: int=DEFA
 
     :param nbits: the number of bits required to store ``n = p*q``.
     :param accurate: when True, ``n`` will have exactly the number of bits you
-        asked for. However, this makes key generation much slower. When False,
-        `n`` may have slightly less bits.
+        asked for. However, this can be a problem when using the RSA algorithm as
+        part of a protocol where others are expecting a certain minimum number of
+        bits. In that case, use accurate=False.
     :param poolsize: the number of processes to use to generate the prime
-        numbers. If set to a number > 1, a parallel algorithm will be used.
+        numbers. If set to a number > 1, then that many processes will be
+        created to generate the prime numbers in parallel.
+    :param exponent: the exponent for the key; only change this if you know
+        what you're doing, as the exponent influences how difficult your
+        private key can be cracked. A very common choice for e is 65537.
+    :type exponent: int
+
+    :returns: a tuple (:py:class:`rsa.PublicKey`, :py:class:`rsa.PrivateKey`)
+
+    The ``poolsize`` parameter was added in *Python-RSA 3.1* and requires
+    Python 2.6 or newer.
+
+    """
+    if nbits < 16:
+        raise ValueError('Key too small')
+
+    if poolsize < 1:
+        raise ValueError('Pool size (%i) should be >= 1' % poolsize)
+
+    # If poolsize is 1, don't use multiprocessing
+    if poolsize == 1:
+        prime_func = rsa.prime.getprime
+    else:
+        from rsa import parallel
+        prime_func = parallel.getprime
+
+    # Generate the key components
+    p, q, e, d = gen_keys(nbits, prime_func, accurate=accurate, exponent=exponent)
+
+    # Create the key objects
+    n = p * q
+
+    return (
+        PublicKey(n, e),
+        PrivateKey(n, e, d, p, q)
+    )
         This requires Python 2.6 or newer.
     :param exponent: the exponent for the key; only change this if you know
         what you're doing, as the exponent influences how difficult your
