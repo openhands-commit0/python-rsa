@@ -232,7 +232,17 @@ class PublicKey(AbstractKey):
         PublicKey(2367317549, 65537)
 
         """
-        pass
+        from pyasn1.codec.der import decoder
+        from rsa.asn1 import AsnPubKey
+
+        # Decode the DER file
+        (priv, _) = decoder.decode(keyfile, asn1Spec=AsnPubKey())
+
+        # Get the numbers
+        n = int(priv['modulus'])
+        e = int(priv['publicExponent'])
+
+        return cls(n, e)
 
     def _save_pkcs1_der(self) -> bytes:
         """Saves the public key in PKCS#1 DER format.
