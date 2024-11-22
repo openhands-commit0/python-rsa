@@ -579,30 +579,6 @@ def newkeys(nbits: int, accurate: bool=True, poolsize: int=1, exponent: int=DEFA
         PublicKey(n, e),
         PrivateKey(n, e, d, p, q)
     )
-        This requires Python 2.6 or newer.
-    :param exponent: the exponent for the key; only change this if you know
-        what you're doing, as the exponent influences how difficult your
-        private key can be cracked. A very common choice for e is 65537.
-    :type exponent: int
-
-    :returns: a tuple (:py:class:`rsa.PublicKey`, :py:class:`rsa.PrivateKey`)
-
-    The ``poolsize`` parameter was added in *Python-RSA 3.1* and requires
-    Python 2.6 or newer.
-
-    """
-    pass
-__all__ = ['PublicKey', 'PrivateKey', 'newkeys']
 if __name__ == '__main__':
     import doctest
-    try:
-        for count in range(100):
-            failures, tests = doctest.testmod()
-            if failures:
-                break
-            if count % 10 == 0 and count or count == 1:
-                print('%i times' % count)
-    except KeyboardInterrupt:
-        print('Aborted')
-    else:
-        print('Doctests done')
+    doctest.testmod()
